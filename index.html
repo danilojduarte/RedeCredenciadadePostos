@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>L'Auto Cargo — Postos Autorizados</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  .leaflet-popup-content-wrapper {
+    background: #112240 !important;
+    border: 1.5px solid #1e4d8c !important;
+    border-radius: 10px !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5) !important;
+    padding: 0 !important;
+  }
+  .leaflet-popup-tip { background: #112240 !important; }
+  .leaflet-popup-content { margin: 0 !important; width: auto !important; }
+  .popup-box { padding: 14px 16px; min-width: 220px; }
+  .popup-box h3 { font-size: 13px; font-weight: 800; color: #e2e8f0; margin-bottom: 4px; line-height: 1.3; }
+  .popup-box .popup-city { font-size: 12px; color: #60a5fa; font-weight: 600; margin-bottom: 6px; }
+  .popup-box .popup-addr { font-size: 11px; color: #94a3b8; line-height: 1.5; margin-bottom: 10px; }
+  .popup-box .popup-tag { display: inline-block; font-size: 10px; font-weight: 700; background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); border-radius: 5px; padding: 2px 8px; margin-bottom: 10px; }
+  .popup-box .popup-btn { display: block; width: 100%; padding: 8px; background: linear-gradient(135deg, #1e4d8c, #2563b0); color: #fff; border: none; border-radius: 7px; font-size: 12px; font-weight: 700; cursor: pointer; text-align: center; transition: opacity 0.2s; }
+  .popup-box .popup-btn:hover { opacity: 0.85; }
+  .leaflet-tooltip {
+    background: #112240 !important;
+    border: 1px solid #1e4d8c !important;
+    color: #e2e8f0 !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    border-radius: 6px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4) !important;
+    padding: 4px 10px !important;
+  }
+  .leaflet-tooltip::before { border-top-color: #1e4d8c !important; }
+</style>
+<style>
+  :root {
+    --navy: #0a1628;
+    --navy2: #112240;
+    --navy3: #1a3a6b;
+    --blue: #1e4d8c;
+    --blue-light: #2563b0;
+    --accent: #3b82f6;
+    --accent-glow: #60a5fa;
+    --gold: #f59e0b;
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+    --border: #1e3a5f;
+    --green: #10b981;
+    --radius: 10px;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--navy); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; }
+
+  /* HEADER */
+  header {
+    background: linear-gradient(135deg, var(--navy2) 0%, var(--navy3) 100%);
+    border-bottom: 2px solid var(--accent);
+    padding: 0 20px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: env(safe-area-inset-top, 0px);
+    z-index: 1000;
+    box-shadow: 0 2px 20px rgba(59,130,246,0.2);
+  }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-icon {
+    width: 42px; height: 42px;
+    background: linear-gradient(135deg, var(--accent), var(--blue-light));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    box-shadow: 0 0 12px rgba(59,130,246,0.4);
+  }
+  .logo h1 { font-size: 17px; font-weight: 800; color: #fff; letter-spacing: -0.3px; }
+  .logo span { font-size: 11px; color: var(--accent-glow); display: block; margin-top: 1px; }
+  .header-right { display: flex; gap: 20px; align-items: center; }
+  .stat-pill {
+    background: rgba(59,130,246,0.12);
+    border: 1px solid rgba(59,130,246,0.3);
+    border-radius: 20px;
+    padding: 5px 14px;
+    text-align: center;
+  }
+  .stat-pill .num { font-size: 18px; font-weight: 800; color: var(--accent-glow); line-height: 1; }
+  .stat-pill .lbl { font-size: 10px; color: var(--text2); letter-spacing: 0.5px; }
+
+  /* LAYOUT */
+  .app { display: flex; height: calc(100vh - 64px); }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 330px; min-width: 330px;
+    background: var(--navy2);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .search-wrap { padding: 14px; border-bottom: 1px solid var(--border); background: var(--navy); position: relative; }
+  .search-box {
+    width: 100%;
+    background: var(--navy2);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 36px 10px 38px;
+    color: var(--text);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2364748b' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.099zm-5.242 1.656a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 12px center;
+  }
+  .search-box:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+  .search-box::placeholder { color: var(--text2); }
+  .search-clear {
+    display: none;
+    position: absolute;
+    right: 26px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--border);
+    border: none;
+    color: var(--text2);
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    font-size: 11px;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    transition: background 0.2s;
+  }
+  .search-clear:hover { background: var(--accent); color: #fff; }
+  .search-clear.show { display: flex; }
+
+  .filters-wrap {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex; gap: 6px; flex-wrap: wrap;
+    background: var(--navy2);
+  }
+  .filter-btn {
+    padding: 4px 11px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text2);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.18s;
+    letter-spacing: 0.3px;
+  }
+  .filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .filter-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .results-bar {
+    padding: 8px 14px;
+    font-size: 11px;
+    color: var(--text2);
+    background: var(--navy);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .results-bar strong { color: var(--accent-glow); }
+
+  .posto-list { overflow-y: auto; flex: 1; }
+  .posto-list::-webkit-scrollbar { width: 4px; }
+  .posto-list::-webkit-scrollbar-track { background: var(--navy2); }
+  .posto-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .posto-card {
+    padding: 13px 14px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.15s;
+    border-left: 3px solid transparent;
+  }
+  .posto-card:hover { background: rgba(59,130,246,0.06); }
+  .posto-card.active { background: rgba(59,130,246,0.1); border-left-color: var(--accent); }
+
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 4px; }
+  .posto-name { font-size: 13px; font-weight: 700; color: var(--text); line-height: 1.3; }
+  .state-badge {
+    font-size: 10px; font-weight: 800;
+    background: rgba(59,130,246,0.18);
+    color: var(--accent-glow);
+    border: 1px solid rgba(59,130,246,0.3);
+    border-radius: 5px;
+    padding: 2px 7px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .posto-city { font-size: 11px; color: var(--text2); margin-bottom: 8px; }
+  .posto-city span { color: var(--green); }
+
+  .btn-route {
+    width: 100%;
+    padding: 7px;
+    background: linear-gradient(135deg, var(--blue) 0%, var(--blue-light) 100%);
+    color: #fff;
+    border: none;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    letter-spacing: 0.2px;
+  }
+  .btn-route:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-route:active { transform: translateY(0); }
+
+  .no-results { padding: 40px 20px; text-align: center; color: var(--text2); font-size: 13px; }
+  .no-results .icon { font-size: 36px; margin-bottom: 10px; }
+
+  /* MAP PANEL */
+  .map-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--navy); }
+  #leaflet-map { flex: 1; width: 100%; min-height: 300px; }
+  .leaflet-container { background: #112240 !important; }
+  .map-info {
+    padding: 12px 16px;
+    background: var(--navy2);
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text2);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .map-info strong { color: var(--text); }
+  .map-info .hint { margin-left: auto; font-size: 11px; color: var(--text2); }
+
+  #map-frame { flex: 1; border: none; width: 100%; }
+
+  .map-placeholder {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    color: var(--text2);
+    text-align: center;
+    padding: 40px;
+  }
+  .map-placeholder .big-icon { font-size: 64px; opacity: 0.4; }
+  .map-placeholder h2 { font-size: 20px; color: var(--text); }
+  .map-placeholder p { font-size: 13px; line-height: 1.6; max-width: 320px; }
+  .map-placeholder .btn-open {
+    padding: 12px 28px;
+    background: linear-gradient(135deg, var(--blue), var(--blue-light));
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(59,130,246,0.3);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .map-placeholder .btn-open:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(59,130,246,0.4); }
+
+  /* DETAIL PANEL */
+  .detail-panel {
+    display: none;
+    padding: 20px;
+    background: var(--navy2);
+    border-top: 1px solid var(--border);
+    gap: 12px;
+  }
+  .detail-panel.show { display: flex; flex-direction: column; }
+  .detail-title { font-size: 15px; font-weight: 800; color: #fff; }
+  .detail-addr { font-size: 12px; color: var(--text2); line-height: 1.5; }
+  .detail-actions { display: flex; gap: 8px; }
+  .btn-gmaps {
+    flex: 1; padding: 10px;
+    background: linear-gradient(135deg, var(--blue), var(--blue-light));
+    color: #fff; border: none; border-radius: 8px;
+    font-size: 13px; font-weight: 700; cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .btn-gmaps:hover { opacity: 0.85; }
+  .btn-close-detail {
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.07);
+    color: var(--text2); border: 1px solid var(--border); border-radius: 8px;
+    font-size: 13px; cursor: pointer;
+  }
+
+  @media (max-width: 640px) {
+    .app { flex-direction: column; }
+    .sidebar { width: 100%; min-width: unset; height: 50vh; }
+    .map-panel { height: 50vh; }
+    .header-right { display: none; }
+    .stat-pill { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🚛</div>
+    <div>
+      <h1>L'Auto Cargo</h1>
+      <span>Rede de Postos Autorizados</span>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="stat-pill"><div class="num">90</div><div class="lbl">Postos</div></div>
+    <div class="stat-pill"><div class="num">19</div><div class="lbl">Estados</div></div>
+    <div class="stat-pill"><div class="num" id="showing-num">90</div><div class="lbl">Exibindo</div></div>
+  </div>
+</header>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="search-wrap">
+      <input class="search-box" id="search" placeholder="🔍  Buscar posto, cidade ou estado..." autocomplete="off" spellcheck="false">
+      <button class="search-clear" id="search-clear" onclick="clearSearch()" title="Limpar busca">✕</button>
+    </div>
+    <div class="filters-wrap" id="filters"></div>
+    <div class="results-bar"><strong id="count">90</strong> postos encontrados — clique para ver no mapa</div>
+    <div class="posto-list" id="posto-list"></div>
+  </div>
+
+  <!-- MAP PANEL -->
+  <div class="map-panel">
+    <div class="map-info">
+      <span>🗺️</span>
+      <strong id="map-label">Selecione um posto para ver no mapa</strong>
+      <span class="hint">Google Maps abre ao traçar rota</span>
+    </div>
+    <div id="leaflet-map"></div>
+    <div class="detail-panel" id="detail-panel">
+      <div class="detail-title" id="detail-name"></div>
+      <div class="detail-addr" id="detail-addr"></div>
+      <div class="detail-actions">
+        <button class="btn-gmaps" id="btn-gmaps">🗺️ Abrir Rota no Google Maps</button>
+        <button class="btn-close-detail" onclick="closeDetail()">✕ Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const postos = [
+  { nome:"Auto Posto Mercado do Bosque", cidade:"Rio Branco", estado:"AC", end:"BR-364, 4128 - Lot. Santa Helena, Rio Branco - AC", lat:-9.9754, lng:-67.8249 },
+  { nome:"Auto Posto Pioneiro", cidade:"Rio Largo", estado:"AL", end:"Rod BR 101, KM 75, Zona Rural", lat:-9.4789, lng:-35.8558 },
+  { nome:"Posto Quarto Milha II", cidade:"Maceió", estado:"AL", end:"Av. Dr. Durval de Goes Monteiro, 10 - Maceió - AL", lat:-9.6658, lng:-35.7350 },
+  { nome:"Posto Equador", cidade:"Manaus", estado:"AM", end:"Av. Des. João Machado, 3763 - Alvorada, Manaus - AM", lat:-3.1190, lng:-60.0217 },
+  { nome:"Posto Eloisa", cidade:"Itacoatiara", estado:"AM", end:"AM-010, 316-942 - Pedreiras, Itacoatiara - AM", lat:-3.1438, lng:-58.4446 },
+  { nome:"Posto Portal da Bahia 2", cidade:"Tucano", estado:"BA", end:"ROD BR 116, KM296, Tucano - BA", lat:-10.9665, lng:-38.7913 },
+  { nome:"Dom Pedro Vitória da Conquista", cidade:"Vitória da Conquista", estado:"BA", end:"Rodovia BR116 KM 854 Inhobim, Vitória da Conquista - BA", lat:-14.8661, lng:-40.8444 },
+  { nome:"Posto Aratu", cidade:"Simões Filho", estado:"BA", end:"BR-324, S/N - Km 16,5 - Cia, Simões Filho - BA", lat:-12.7833, lng:-38.4000 },
+  { nome:"Posto Petrometal", cidade:"Irecê", estado:"BA", end:"Av. Primeiro de Janeiro, Irecê - BA", lat:-11.3039, lng:-41.8553 },
+  { nome:"Posto Nego Vei", cidade:"Itabuna", estado:"BA", end:"ROD. BR 101 S/N KM 503,5, Itabuna - BA", lat:-14.7861, lng:-39.2800 },
+  { nome:"Posto Serral", cidade:"Itamaraju", estado:"BA", end:"BR-101, km 808 - Canaã, Itamaraju - BA", lat:-17.0386, lng:-39.5317 },
+  { nome:"Posto Grande Vale", cidade:"Jaguaquara", estado:"BA", end:"BR-116, 640 - Entroncamento, Jaguaquara - BA", lat:-13.5269, lng:-39.9708 },
+  { nome:"Posto Ibotirama", cidade:"Ibotirama", estado:"BA", end:"BR-242, Km 466.5, Ibotirama - BA", lat:-12.1800, lng:-43.2167 },
+  { nome:"Posto Elite III", cidade:"Capim Grosso", estado:"BA", end:"BR-324 - Planaltino I, Capim Grosso - BA", lat:-11.3806, lng:-40.0133 },
+  { nome:"Postos Brasil III", cidade:"Juazeiro", estado:"BA", end:"Av. Rod. Lomanto Júnior, S/N - KM-13, Juazeiro - BA", lat:-9.8833, lng:-40.5167 },
+  { nome:"Posto Barreiras", cidade:"Catolândia", estado:"BA", end:"BR-242, km 740 - Zona Rural, Catolândia - BA", lat:-12.2000, lng:-44.6667 },
+  { nome:"Posto Elite II", cidade:"Conceição do Jacuípe", estado:"BA", end:"BR-101, Feira de Santana - BA", lat:-12.3383, lng:-38.7656 },
+  { nome:"Posto Meira II", cidade:"Brumado", estado:"BA", end:"AV CEL SANTOS 785, Brumado - BA", lat:-14.2039, lng:-41.6656 },
+  { nome:"Posto São Domingos Flash", cidade:"Sobral", estado:"CE", end:"AV MONSENHOR JOSE ALOISIO PINTO 100, Sobral - CE", lat:-3.6861, lng:-40.3492 },
+  { nome:"Posto L Car", cidade:"Tianguá", estado:"CE", end:"BR-222, Km 317 - Cacimbas, Tianguá - CE", lat:-3.7333, lng:-40.9917 },
+  { nome:"Posto Tavares", cidade:"São Gonçalo do Amarante", estado:"CE", end:"Br 222, Km 63,5 Croatá, São Gonçalo do Amarante - CE", lat:-3.6036, lng:-38.9731 },
+  { nome:"Posto Limarques 3", cidade:"Penaforte", estado:"CE", end:"BR-116, km 550, Penaforte - CE", lat:-7.8311, lng:-39.0428 },
+  { nome:"Posto Pitombeira", cidade:"Jaguaribe", estado:"CE", end:"BR 116 KM 299, Jaguaribe - CE", lat:-5.8892, lng:-38.6228 },
+  { nome:"Posto Sul-Shell", cidade:"Fortaleza", estado:"CE", end:"Av. Frei Cirilo, s/n - Cajazeiras, Fortaleza - CE", lat:-3.8144, lng:-38.5631 },
+  { nome:"Posto Marina", cidade:"Fortaleza", estado:"CE", end:"Av. Pres. Castelo Branco, 240, Fortaleza - CE", lat:-3.7333, lng:-38.5667 },
+  { nome:"Posto Sete Carioca", cidade:"Horizonte", estado:"CE", end:"Av. Pres. Castelo Branco, 5555, Horizonte - CE", lat:-4.1039, lng:-38.4869 },
+  { nome:"Posto Beira Rio", cidade:"Crateús", estado:"CE", end:"Av. Sgt. Hermínio, 1006, Crateús - CE", lat:-5.1778, lng:-40.6692 },
+  { nome:"Posto Prime", cidade:"Barbalha", estado:"CE", end:"R. T1, 158 - Sítio Mata, Barbalha - CE", lat:-7.3083, lng:-39.3008 },
+  { nome:"Auto Posto DDD", cidade:"Simolândia", estado:"GO", end:"BR-020 - Zona Rural, Simolândia - GO", lat:-14.5333, lng:-46.1167 },
+  { nome:"Marajó Rio Verde", cidade:"Rio Verde", estado:"GO", end:"BR-452, KM 18, Rio Verde - GO", lat:-17.7983, lng:-50.9408 },
+  { nome:"Marajó Jataí", cidade:"Jataí", estado:"GO", end:"BR-364, KM 234, Jataí - GO", lat:-17.8822, lng:-51.7153 },
+  { nome:"Posto Samambaia", cidade:"Aparecida de Goiânia", estado:"GO", end:"Marginal Leste - Vila Souza, Aparecida de Goiânia - GO", lat:-16.8228, lng:-49.2439 },
+  { nome:"Posto Mais Boa Esperança", cidade:"Timon", estado:"MA", end:"ROD BR-316, N° 6563, Timon - MA", lat:-5.0939, lng:-42.8353 },
+  { nome:"Roma Pneus e Recapagens", cidade:"São Luís", estado:"MA", end:"BR-135, 6 - Vila Sarney, São Luís - MA", lat:-2.5297, lng:-44.3028 },
+  { nome:"Posto Magnolia 07", cidade:"Santa Inês", estado:"MA", end:"ROD BR 316 - KM 265, Santa Inês - MA", lat:-3.6653, lng:-45.3808 },
+  { nome:"Posto Magnolia 04", cidade:"Itapecuru Mirim", estado:"MA", end:"BR 135, KM 95, Itapecuru Mirim - MA", lat:-3.3972, lng:-44.3597 },
+  { nome:"Posto Minas Gerais", cidade:"Estreito", estado:"MA", end:"BR-010, Estreito - MA", lat:-6.5608, lng:-47.4500 },
+  { nome:"Chapadinha 3", cidade:"Chapadinha", estado:"MA", end:"BR-222, Chapadinha - MA", lat:-3.7428, lng:-43.3597 },
+  { nome:"Posto Magnolia 06", cidade:"Açailândia", estado:"MA", end:"BR-010, 1415 - Centro, Açailândia - MA", lat:-4.9472, lng:-47.5008 },
+  { nome:"Posto Ana Terra", cidade:"Alto Alegre do Maranhão", estado:"MA", end:"BR-316, km 406, Alto Alegre do Maranhão - MA", lat:-3.4167, lng:-44.7000 },
+  { nome:"Posto Magnolia 17", cidade:"Balsas", estado:"MA", end:"Rod BR 230, km 4,5 - Setor Industrial, Balsas - MA", lat:-7.5322, lng:-46.0356 },
+  { nome:"Posto Antares", cidade:"Uberaba", estado:"MG", end:"ROD BR 50 173,4, Uberaba - MG", lat:-19.7478, lng:-47.9317 },
+  { nome:"Dom Pedro Pouso Alegre", cidade:"Pouso Alegre", estado:"MG", end:"Rod. Fernão Dias, Km 859, Pouso Alegre - MG", lat:-22.2297, lng:-45.9358 },
+  { nome:"Minas Grill", cidade:"Ribeirão Vermelho", estado:"MG", end:"Ribeirão Vermelho - MG", lat:-21.1833, lng:-45.0667 },
+  { nome:"Posto D Angelis", cidade:"Montes Claros", estado:"MG", end:"ROD BR251, KM 516,2, Montes Claros - MG", lat:-16.7167, lng:-43.8667 },
+  { nome:"Posto D Angelis II", cidade:"Montes Claros", estado:"MG", end:"Rodovia BR 251, KM 514.7, Montes Claros - MG", lat:-16.7200, lng:-43.8650 },
+  { nome:"Posto Antonini", cidade:"Naviraí", estado:"MS", end:"Av. Campo Grande, 1290, Naviraí - MS", lat:-23.0622, lng:-54.1892 },
+  { nome:"Posto Ideal", cidade:"Campo Grande", estado:"MS", end:"R. Castelnuovo, 32 - Jardim Noroeste, Campo Grande - MS", lat:-20.4697, lng:-54.6201 },
+  { nome:"Posto Acácia", cidade:"Anastácio", estado:"MS", end:"R. Índio Neco, Anastácio - MS", lat:-20.4833, lng:-55.8167 },
+  { nome:"Marajó Cuiabá II", cidade:"Várzea Grande", estado:"MT", end:"ROD BR 163-364 MT - KM 435, Várzea Grande - MT", lat:-15.6469, lng:-56.1322 },
+  { nome:"Posto Iguaçu", cidade:"Pontes e Lacerda", estado:"MT", end:"Av. Marginal, 905, Pontes e Lacerda - MT", lat:-15.2261, lng:-59.3344 },
+  { nome:"Auto Posto Paiaguás", cidade:"Cuiabá", estado:"MT", end:"Av Pedro Paulo de Farias Jr, nº 2370, Cuiabá - MT", lat:-15.6014, lng:-56.0979 },
+  { nome:"Posto Comaxin", cidade:"Xinguara", estado:"PA", end:"PA-279, Xinguara - PA", lat:-7.0939, lng:-49.9469 },
+  { nome:"Marajó Tailândia", cidade:"Tailândia", estado:"PA", end:"Av. Pará, 150, Tailândia - PA", lat:-2.9333, lng:-48.9500 },
+  { nome:"Posto Marajó Paragominas", cidade:"Paragominas", estado:"PA", end:"BR-010, Km 1657, Paragominas - PA", lat:-2.9931, lng:-47.4817 },
+  { nome:"Marajó Eldorado", cidade:"Eldorado do Carajás", estado:"PA", end:"Rod Pa 155, Km 99, Eldorado do Carajás - PA", lat:-6.1139, lng:-49.3219 },
+  { nome:"Marajó Grande Belém", cidade:"Benevides", estado:"PA", end:"BR-316, 25, Benevides - PA", lat:-1.3608, lng:-48.2439 },
+  { nome:"Posto Roma", cidade:"Altamira", estado:"PA", end:"Rod. Ernesto Aciole, S/N, Altamira - PA", lat:-3.2031, lng:-52.2122 },
+  { nome:"Posto Santo Antonio", cidade:"Santa Luzia", estado:"PB", end:"SITIO BALANCO BR 230 KM 286, Santa Luzia - PB", lat:-6.8728, lng:-36.9178 },
+  { nome:"Posto Pichilau", cidade:"João Pessoa", estado:"PB", end:"R. Industrial Luís Carlos Crispim, 483, João Pessoa - PB", lat:-7.1153, lng:-34.8631 },
+  { nome:"Posto Clip", cidade:"Conde", estado:"PB", end:"BR-101, Distrito Industrial, Conde - PB", lat:-7.2586, lng:-34.9083 },
+  { nome:"Posto Barros - Matriz", cidade:"Campina Grande", estado:"PB", end:"BR-230, s/n - Três Irmãs, Campina Grande - PB", lat:-7.2306, lng:-35.8811 },
+  { nome:"Posto Arizona", cidade:"Cachoeira dos Índios", estado:"PB", end:"ROD. BR 116 KM 432, Cachoeira dos Índios - PB", lat:-6.9667, lng:-38.5667 },
+  { nome:"Posto Abasteça", cidade:"Bayeux", estado:"PB", end:"BR-101 - Alto da Boa Vista, Bayeux - PB", lat:-7.1239, lng:-34.9167 },
+  { nome:"Posto Vercol", cidade:"Salgueiro", estado:"PE", end:"Avenida Coronel Veremundo Soares, 1640, Salgueiro - PE", lat:-8.0728, lng:-39.1258 },
+  { nome:"Posto Carreteiro", cidade:"Pombos", estado:"PE", end:"BR-232, 347, Pombos - PE", lat:-8.1403, lng:-35.3919 },
+  { nome:"Posto Cunha", cidade:"Recife", estado:"PE", end:"AV MAL MASCARENHAS DE MORAIS, 3468, Recife - PE", lat:-8.1269, lng:-34.9286 },
+  { nome:"Posto Sul", cidade:"Jaboatão dos Guararapes", estado:"PE", end:"Av. Dr. Júlio Maranhão, 400, Jaboatão dos Guararapes - PE", lat:-8.1833, lng:-35.0167 },
+  { nome:"Vila Esperança", cidade:"Jaboatão dos Guararapes", estado:"PE", end:"BR-232, KM 22, Jaboatão dos Guararapes - PE", lat:-8.1500, lng:-35.0500 },
+  { nome:"Arlindo Fonseca Lins", cidade:"Escada", estado:"PE", end:"Rod. Prestes Maia, 3375, Escada - PE", lat:-8.3597, lng:-35.2256 },
+  { nome:"Posto Cruzeiro IV", cidade:"Arcoverde", estado:"PE", end:"Av. Osvaldo Cruz, 1740, Arcoverde - PE", lat:-8.4189, lng:-37.0558 },
+  { nome:"Posto Cacique 17", cidade:"Teresina", estado:"PI", end:"Av. Prefeito Wall Ferraz, 15116, Teresina - PI", lat:-5.0892, lng:-42.8019 },
+  { nome:"Posto 2 Irmãos III", cidade:"Curitiba", estado:"PR", end:"Estr. do Ganchinho, 2919 - Sítio Cercado, Curitiba - PR", lat:-25.5469, lng:-49.2647 },
+  { nome:"Posto Sumaré", cidade:"Mossoró", estado:"RN", end:"Av. Wilson Rosado, 11754 - Alto do Sumaré, Mossoró - RN", lat:-5.1878, lng:-37.3439 },
+  { nome:"Posto Cirne", cidade:"Parnamirim", estado:"RN", end:"AV PILOTO PEREIRA TIM 2279, Parnamirim - RN", lat:-5.9147, lng:-35.2636 },
+  { nome:"Posto Confiança Zona Sul", cidade:"Parnamirim", estado:"RN", end:"AV MARIA LACERDA MONTENEGRO, Parnamirim - RN", lat:-5.9200, lng:-35.2600 },
+  { nome:"Auto Posto Bodanese", cidade:"Vilhena", estado:"RO", end:"Av. Celso Mazutti, 2445, Vilhena - RO", lat:-12.7408, lng:-60.1458 },
+  { nome:"Posto Mirian Pimentão", cidade:"Pimenta Bueno", estado:"RO", end:"BR-364, 1750 - Km 200, Pimenta Bueno - RO", lat:-11.6722, lng:-61.1961 },
+  { nome:"Posto Mirian 13 Ji-Paraná", cidade:"Ji-Paraná", estado:"RO", end:"R. Teresina, 186, Ji-Paraná - RO", lat:-10.8794, lng:-61.9483 },
+  { nome:"Auto Posto Bodanese 2", cidade:"Candeias do Jamari", estado:"RO", end:"R. Zacarias Vicente dos Santos, 33, Candeias do Jamari - RO", lat:-8.7967, lng:-63.6911 },
+  { nome:"Buffon 35", cidade:"Cachoeirinha", estado:"RS", end:"RS-118, 11 - Jardim Betânia, Cachoeirinha - RS", lat:-29.9439, lng:-51.0931 },
+  { nome:"Posto Reforço II", cidade:"Umbaúba", estado:"SE", end:"ROD BR 101 KM 179,5, Umbaúba - SE", lat:-11.3728, lng:-37.6619 },
+  { nome:"Posto Reforço 8", cidade:"Santa Luzia do Itanhy", estado:"SE", end:"BR-101, 156, Santa Luzia do Itanhy - SE", lat:-11.3583, lng:-37.4583 },
+  { nome:"Posto Boa Viagem", cidade:"Nossa Senhora do Socorro", estado:"SE", end:"km 90, Caminho p/ Br 101, Nossa Senhora do Socorro - SE", lat:-10.8558, lng:-37.1247 },
+  { nome:"Rede Presidente I", cidade:"Aracaju", estado:"SE", end:"AV COELHO E CAMPOS 1254, Aracaju - SE", lat:-10.9167, lng:-37.0500 },
+  { nome:"Auto Posto Pica Pau", cidade:"São João de Meriti", estado:"SP", end:"Av. Comendador Teles, 3455, São João de Meriti - RJ", lat:-22.8028, lng:-43.3708 },
+  { nome:"Posto Canaiolo", cidade:"Guarulhos", estado:"SP", end:"Av. Educador Paulo Freire, Guarulhos - SP", lat:-23.4647, lng:-46.5333 },
+  { nome:"Dom Pedro Aparecida", cidade:"Aparecida", estado:"SP", end:"Saída Rodovia Presidente Dutra, 71, Aparecida - SP", lat:-22.8469, lng:-45.2322 },
+  { nome:"Marajó Nova Olinda", cidade:"Nova Olinda", estado:"TO", end:"BR-153, 4076, Nova Olinda - TO", lat:-7.8667, lng:-48.4167 },
+  { nome:"Posto Marajó Cariri I", cidade:"Cariri do Tocantins", estado:"TO", end:"km 695, BR-153, Cariri do Tocantins - TO", lat:-11.8833, lng:-49.1333 },
+];
+
+const states = [...new Set(postos.map(p => p.estado))].sort();
+let activeState = null, activeIdx = null;
+let filtered = [...postos];
+
+// Filters
+const filtersEl = document.getElementById('filters');
+function makeFilterBtn(label, state) {
+  const btn = document.createElement('button');
+  btn.className = 'filter-btn' + (state === null ? ' active' : '');
+  btn.textContent = label;
+  btn.onclick = () => {
+    activeState = state;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    filterPostos();
+  };
+  filtersEl.appendChild(btn);
+}
+makeFilterBtn('Todos', null);
+states.forEach(s => makeFilterBtn(s, s));
+
+// Search event listeners — multiple events for reliability
+const searchEl = document.getElementById('search');
+const clearBtn = document.getElementById('search-clear');
+
+['input','keyup','keydown','change','paste'].forEach(evt => {
+  searchEl.addEventListener(evt, () => {
+    clearBtn.classList.toggle('show', searchEl.value.length > 0);
+    filterPostos();
+  });
+});
+
+function clearSearch() {
+  searchEl.value = '';
+  clearBtn.classList.remove('show');
+  searchEl.focus();
+  filterPostos();
+}
+
+function filterPostos() {
+  const q = searchEl.value.toLowerCase().trim();
+  filtered = postos.filter(p => {
+    const ms = !activeState || p.estado === activeState;
+    const mq = !q ||
+      p.nome.toLowerCase().includes(q) ||
+      p.cidade.toLowerCase().includes(q) ||
+      p.estado.toLowerCase().includes(q) ||
+      p.end.toLowerCase().includes(q);
+    return ms && mq;
+  });
+  activeIdx = null;
+  renderList();
+  buildAllMarkers();
+  closeDetail();
+}
+
+function renderList() {
+  const list = document.getElementById('posto-list');
+  const cnt = filtered.length;
+  document.getElementById('count').textContent = cnt;
+  document.getElementById('showing-num').textContent = cnt;
+  if (!cnt) {
+    list.innerHTML = '<div class="no-results"><div class="icon">🔍</div>Nenhum posto encontrado.<br>Tente outro termo ou estado.</div>';
+    return;
+  }
+  list.innerHTML = filtered.map((p, i) => `
+    <div class="posto-card ${activeIdx === i ? 'active' : ''}" onclick="selectPosto(${i})">
+      <div class="card-top">
+        <div class="posto-name">${p.nome}</div>
+        <span class="state-badge">${p.estado}</span>
+      </div>
+      <div class="posto-city">📍 <span>${p.cidade}</span></div>
+      <button class="btn-route" onclick="event.stopPropagation(); openMaps(${i})">🗺️ Traçar Rota no Google Maps</button>
+    </div>
+  `).join('');
+}
+
+// Init Leaflet map
+const map = L.map('leaflet-map', { zoomControl: true }).setView([-14.235, -51.925], 4);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap contributors', maxZoom: 19
+}).addTo(map);
+
+const defaultIcon = L.divIcon({
+  html: `<div style="width:13px;height:13px;background:#3b82f6;border:2px solid #fff;border-radius:50%;box-shadow:0 0 8px rgba(59,130,246,0.8)"></div>`,
+  className: '', iconSize: [13,13], iconAnchor: [6,6]
+});
+const activeIcon = L.divIcon({
+  html: `<div style="width:18px;height:18px;background:#fff;border:3px solid #3b82f6;border-radius:50%;box-shadow:0 0 12px rgba(59,130,246,1)"></div>`,
+  className: '', iconSize: [18,18], iconAnchor: [9,9]
+});
+
+let allMarkers = [];
+let activeMarker = null;
+
+function buildAllMarkers() {
+  allMarkers.forEach(m => map.removeLayer(m));
+  allMarkers = [];
+  filtered.forEach((p, i) => {
+    const m = L.marker([p.lat, p.lng], { icon: defaultIcon }).addTo(map);
+
+    // Tooltip ao passar o mouse
+    m.bindTooltip(`<b>${p.nome}</b><br>${p.cidade}/${p.estado}`, {
+      direction: 'top', offset: [0, -8], opacity: 1
+    });
+
+    // Popup ao clicar com informações completas
+    m.bindPopup(`
+      <div class="popup-box">
+        <h3>${p.nome}</h3>
+        <div class="popup-city">📍 ${p.cidade} — ${p.estado}</div>
+        <div class="popup-tag">⛽ Abastecimento Autorizado</div>
+        <div class="popup-addr">🛣️ ${p.end}</div>
+        <button class="popup-btn" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}','_blank')">🗺️ Traçar Rota no Google Maps</button>
+      </div>
+    `, { maxWidth: 280, closeButton: true });
+
+    m.on('click', () => {
+      selectPosto(i);
+      m.openPopup();
+    });
+    allMarkers.push(m);
+  });
+}
+
+function selectPosto(i) {
+  activeIdx = i;
+  const p = filtered[i];
+  document.getElementById('map-label').textContent = `${p.nome} — ${p.cidade}/${p.estado}`;
+  map.setView([p.lat, p.lng], 14, { animate: true });
+  if (activeMarker) activeMarker.setIcon(defaultIcon);
+  activeMarker = allMarkers[i];
+  if (activeMarker) activeMarker.setIcon(activeIcon);
+  document.getElementById('detail-name').textContent = p.nome;
+  document.getElementById('detail-addr').textContent = `📍 ${p.end}`;
+  document.getElementById('btn-gmaps').onclick = () => openMaps(i);
+  document.getElementById('detail-panel').classList.add('show');
+  renderList();
+  const cards = document.querySelectorAll('.posto-card');
+  if (cards[i]) cards[i].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function openMaps(i) {
+  const p = filtered[i];
+  window.open(`https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`, '_blank');
+}
+
+function closeDetail() {
+  document.getElementById('detail-panel').classList.remove('show');
+  document.getElementById('map-label').textContent = 'Selecione um posto para ver no mapa';
+  if (activeMarker) { activeMarker.setIcon(defaultIcon); activeMarker = null; }
+  activeIdx = null;
+  renderList();
+}
+
+renderList();
+buildAllMarkers();
+</script>
+</body>
+</html>
